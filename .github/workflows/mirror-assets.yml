@@ -3,11 +3,10 @@ name: Mirror Release Assets to Repo
 on:
   release:
     types: [published]
-  workflow_dispatch: {}
+  workflow_dispatch: {}   # biar bisa dijalankan manual dari tab Actions
 
-on:
-  release:
-    types: [published]
+permissions:
+  contents: write         # perlu untuk git commit & push
 
 jobs:
   mirror:
@@ -16,6 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # persist-credentials default true → cukup untuk push
 
       - name: Download release assets
         uses: robinraju/release-downloader@v1.10
@@ -28,19 +28,23 @@ jobs:
 
       - name: Prepare dist folder
         run: |
+          set -euo pipefail
           V="${{ github.event.release.tag_name }}"
           mkdir -p dist/token.wind/${V} dist/token.wind/latest
-          cp mirror_tmp/token.abi dist/token.wind/${V}/token.abi
+          cp mirror_tmp/token.abi  dist/token.wind/${V}/token.abi
           cp mirror_tmp/token.wasm dist/token.wind/${V}/token.wasm
-          cp mirror_tmp/token.abi dist/token.wind/latest/token.abi
+          cp mirror_tmp/token.abi  dist/token.wind/latest/token.abi
           cp mirror_tmp/token.wasm dist/token.wind/latest/token.wasm
           (cd dist/token.wind/${V} && sha256sum token.* | tee SHA256SUMS.txt)
 
       - name: Commit & push
         run: |
           V="${{ github.event.release.tag_name }}"
-          git config user.name "windvex-bot"
+          git config user.name  "windvex-bot"
           git config user.email "bot@windvex"
           git add dist/
-          git commit -m "chore(dist): mirror assets for ${V}"
+          # kalau tidak ada perubahan, jangan error
+          git diff --cached --quiet && echo "No changes to commit" || git commit -m "chore(dist): mirror assets for ${V}"
+          # rebase ringan biar aman kalau ada commit lain nyelip
+          git pull --rebase origin "${GITHUB_REF_NAME:-main}" || true
           git push
