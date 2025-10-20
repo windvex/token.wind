@@ -1,0 +1,41 @@
+name: Mirror Release Assets to Repo
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download release assets
+        uses: robinraju/release-downloader@v1.10
+        with:
+          repository: ${{ github.repository }}
+          tag: ${{ github.event.release.tag_name }}
+          fileName: "token.*"
+          out-file-path: "mirror_tmp"
+          useLatestRelease: false
+
+      - name: Prepare dist folder
+        run: |
+          V="${{ github.event.release.tag_name }}"
+          mkdir -p dist/token.wind/${V} dist/token.wind/latest
+          cp mirror_tmp/token.abi dist/token.wind/${V}/token.abi
+          cp mirror_tmp/token.wasm dist/token.wind/${V}/token.wasm
+          cp mirror_tmp/token.abi dist/token.wind/latest/token.abi
+          cp mirror_tmp/token.wasm dist/token.wind/latest/token.wasm
+          (cd dist/token.wind/${V} && sha256sum token.* | tee SHA256SUMS.txt)
+
+      - name: Commit & push
+        run: |
+          V="${{ github.event.release.tag_name }}"
+          git config user.name "windvex-bot"
+          git config user.email "bot@windvex"
+          git add dist/
+          git commit -m "chore(dist): mirror assets for ${V}"
+          git push
