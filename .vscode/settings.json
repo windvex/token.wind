@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "*.vue": "vue",
-        "string": "cpp",
-        "unordered_map": "cpp",
-        "string_view": "cpp",
-        "locale": "cpp"
-    }
-}
